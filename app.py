@@ -307,7 +307,11 @@ def save_vehicle_data(tracker, output_dir='vehicle_data'):
 
 
 
-def procesar_video_streamlit(uploaded_video):
+def procesar_video_streamlit(
+    uploaded_video, 
+    confidence_threshold=0.75, 
+    max_age=7
+):
     """
     Procesar video subido en Streamlit
     """
@@ -332,8 +336,8 @@ def procesar_video_streamlit(uploaded_video):
     # Procesar video
     tracker = video_processor.procesar_video(
         model, 
-        confidence_threshold=0.75,
-        max_age=7
+        confidence_threshold=confidence_threshold,
+        max_age=max_age
     )
 
     # Guardar datos de vehículos
@@ -352,7 +356,6 @@ def procesar_video_streamlit(uploaded_video):
         return None
 
     return output_dir
-
 
 
 def obtener_frame_base(video_path):
@@ -667,5 +670,162 @@ def main_streamlit():
 
 
 
+
+
+
+def main_streamlit():
+    # Usar st.session_state para mantener el estado
+    if 'processed_output_dir' not in st.session_state:
+        st.session_state.processed_output_dir = None
+
+    st.title("Análisis de Vehículos en Video")
+
+    # Sidebar para configuración
+    st.sidebar.header("Configuración")
+
+    # Subir video
+    uploaded_video = st.sidebar.file_uploader(
+        "Subir Video", 
+        type=['mp4', 'avi', 'mov'], 
+        help="Video para análisis de vehículos"
+    )
+
+    # Parámetros de configuración
+    confidence_threshold = st.sidebar.slider(
+        "Umbral de Confianza", 
+        min_value=0.1, 
+        max_value=1.0, 
+        value=0.75, 
+        step=0.05,
+        help="Umbral de confianza para detección de vehículos. Un valor más alto significa detecciones más estrictas."
+    )
+
+    max_age = st.sidebar.slider(
+        "Máxima Edad de Track", 
+        min_value=1, 
+        max_value=15, 
+        value=7,
+        help="Número máximo de frames que un objeto puede estar sin ser detectado antes de ser eliminado del seguimiento."
+    )
+
+    # Botón de procesamiento
+    if st.sidebar.button("Procesar Video") and uploaded_video:
+        # Mensaje de procesamiento
+        with st.spinner('Procesando video...'):
+            try:
+                # Procesar video con los valores de los sliders
+                output_dir = procesar_video_streamlit(
+                    uploaded_video, 
+                    confidence_threshold=confidence_threshold, 
+                    max_age=max_age
+                )
+
+                # Guardar en session state
+                st.session_state.processed_output_dir = output_dir
+
+                # Mostrar resultados
+                st.success("Procesamiento completado!")
+
+            except Exception as e:
+                st.error(f"Error en el procesamiento: {e}")
+
+    # Mostrar resultados si ya se ha procesado un video
+    if st.session_state.processed_output_dir:
+        output_dir = st.session_state.processed_output_dir
+
+        # Sección de resultados
+        st.header("Resultados del Análisis")
+
+        # Mostrar video de tracking
+        st.subheader("Video de Tracking")
+        tracking_video_path = 'output_video_tracking_optimizado.mp4'
+        
+        try:
+            # Intentar abrir el video
+            with open(tracking_video_path, 'rb') as video_file:
+                video_bytes = video_file.read()
+                
+                # Verificar si hay contenido de video
+                if video_bytes:
+                    # Botón de descarga en lugar de reproducción
+                    st.download_button(
+                        label="Descargar Video Procesado", 
+                        data=video_bytes,
+                        file_name="video_tracking.mp4",
+                        mime="video/mp4",
+                        key="download_processed_video"
+                    )
+                else:
+                    st.error("El archivo de video está vacío")
+        
+        except FileNotFoundError:
+            st.error(f"No se encontró el archivo de video: {tracking_video_path}")
+        except Exception as e:
+            st.error(f"Error al procesar el video: {e}")
+
+        # Mostrar gráficos generados
+        st.subheader("Gráficos de Análisis")
+        
+        # Generar imágenes
+        generated_images = analizar_datos_vehiculos(output_dir)
+        
+        if generated_images:
+            # Velocidades de vehículos
+            st.image(generated_images[0], caption='Velocidades de Vehículos')
+            
+            # Mapas de calor
+            col1, col2 = st.columns(2)
+            with col1:
+                st.image(generated_images[1], caption='Mapa de Calor de Velocidades (Scatter)')
+            with col2:
+                st.image(generated_images[2], caption='Mapa de Calor de Velocidades (Histograma)')
+        else:
+            st.error("No se pudieron generar los gráficos")
+
+        # Descargar archivos CSV
+        st.subheader("Descargar Datos")
+        
+        # Botones de descarga
+        col1, col2 = st.columns(2)
+        with col1:
+            with open(os.path.join(output_dir, 'vehicle_positions.csv'), 'rb') as f:
+                st.download_button(
+                    label="Descargar Posiciones",
+                    data=f,
+                    file_name='vehicle_positions.csv',
+                    mime='text/csv'
+                )
+        
+        with col2:
+            with open(os.path.join(output_dir, 'vehicle_speeds.csv'), 'rb') as f:
+                st.download_button(
+                    label="Descargar Velocidades",
+                    data=f,
+                    file_name='vehicle_speeds.csv',
+                    mime='text/csv'
+                )
+
+
+
+
+
+
+
+
+
+
+
 if __name__ == "__main__":
     main_streamlit()
+
+
+
+
+
+
+
+
+
+
+
+
