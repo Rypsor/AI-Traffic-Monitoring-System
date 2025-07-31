@@ -2,6 +2,8 @@
 
 This project is a web application built with Streamlit that uses artificial intelligence to analyze traffic videos. The system detects and tracks vehicles, estimates their speed, and generates detailed visualizations and reports from the analysis.
 
+Streamlit link: https://ai-traffic-monitoring-system-cmsp4vmasmpnxffhdzcczr.streamlit.app/
+
 ---
 
 ## ✨ Key Features
